@@ -4,7 +4,7 @@ import { useSnapshot } from 'valtio'
 
 import config from '../config/config'
 import state from '../store'
-import { download, logoShirt } from '../assets'
+import { download } from '../assets'
 import { downloadCanvasToImage, reader } from '../config/helpers'
 import { EditorTabs, FilterTabs, DecalTypes } from '../config/constants'
 import { fadeAnimation, slideAnimation } from '../config/motion'
@@ -20,8 +20,10 @@ const Customizer = () => {
   const snap = useSnapshot(state)
 
   const [file, setFile] = useState('')
+
   const [prompt, setPrompt] = useState('')
   const [generatingImg, setGeneratingImg] = useState(false)
+
   const [activeEditorTab, setActiveEditorTab] = useState('')
   const [activeFilterTab, setActiveFilterTab] = useState({
     logoShirt: true,
@@ -29,7 +31,7 @@ const Customizer = () => {
   })
 
   // show tab content depending on the activeTab
-  const generateTabContent = (tab) => {
+  const generateTabContent = () => {
     switch (activeEditorTab) {
       case 'colorpicker':
         return <ColorPicker />
@@ -53,7 +55,21 @@ const Customizer = () => {
     if (!prompt) return alert('Please enter a prompt')
 
     try {
-      // call our backend to generate an ai image!
+      setGeneratingImg(true)
+
+      const response = await fetch('http://localhost:8080/api/v1/dalle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+        }),
+      })
+
+      const data = await response.json()
+
+      handleDecals(type, `data:image/png;base64,${data.photo}`)
     } catch (error) {
       alert(error)
     } finally {
@@ -79,9 +95,11 @@ const Customizer = () => {
         break
       case 'stylishShirt':
         state.isFullTexture = !activeFilterTab[tabName]
+        break
       default:
         state.isLogoTexture = true
         state.isFullTexture = false
+        break
     }
 
     // after setting the state, activeFilterTab is updated
@@ -119,10 +137,12 @@ const Customizer = () => {
                     handleClick={() => setActiveEditorTab(tab.name)}
                   />
                 ))}
+
                 {generateTabContent()}
               </div>
             </div>
           </motion.div>
+
           <motion.div
             className="absolute z-10 top-5 right-5"
             {...fadeAnimation}
@@ -130,9 +150,7 @@ const Customizer = () => {
             <CustomButton
               type="filled"
               title="Go Back"
-              handleClick={() => {
-                state.intro = true
-              }}
+              handleClick={() => (state.intro = true)}
               customStyles="w-fit px-4 py-2.5 font-bold text-sm"
             />
           </motion.div>
